@@ -16,23 +16,28 @@
             font-family: Arial, sans-serif;
             background-color: #222;
             padding: 16px;
-            max-width: 500px;
+            max-width: 700px;
             margin: 0 auto;
+
+            background: url("icons/background.jpg");
+            background-size: cover;
+            background-attachment: fixed;
+
         }
 
         h1{
             color: #fce300;
-            font-size: 12px;
+            font-size: 24px;
             font-weight: 600;
 
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 4px;
+            gap: 10px;
 
             img{
-                width: 16px;
-                height: 16px;
+                width: 32px;
+                height: 32px;
             }
         }
 
@@ -43,6 +48,8 @@
         header{
             background-color: silver;
             padding: 3px;
+
+            grid-area: header;
 
             button{
                 padding: 2px;
@@ -60,15 +67,92 @@
 
         footer{
             background-color: silver;
-            padding:4px;
+            padding:8px;
+            grid-area: footer;
         }
 
         main{
-            padding: 16px;
+            padding: 24px;
+            grid-area: main;
+
+            
         }
 
         #container{
-            border: 1px solid #808080
+            border: 2px solid rgb(12, 9, 9);
+            display: grid;
+            grid-template-areas: 
+                "header header header"
+                "aside main main"
+                "footer footer footer";
+
+                background-color: gray;
+            
+            
+
+        }
+
+        aside{
+            background-color: silver;
+            width: 70px;
+            padding-top: 2px;
+            grid-area: aside;
+            nav{
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1px;
+                justify-content: center;
+            }
+            
+            button{
+                width: 32px;
+                height: 32px;
+
+                background: #bdbdbd url("icons/draw.png") no-repeat center;
+
+                border: 1.5px solid #eee;
+                border-right-color: #000;
+                border-bottom-color: #000;
+
+                image-rendering: pixelated;
+
+                margin: 1px;
+
+                &.active{
+                    background-color: #eee;
+
+                    border-color: #000;
+                    border-right-color: #eee;
+                    border-bottom-color: #eee;
+
+                }
+
+                &[disabled]{
+                    opacity: .5;
+                    pointer-events: none;
+                }
+            }
+        }
+
+        #erase-btn{
+            background-image: url("icons/erase.png");
+        }
+
+        #rectangle-btn{
+            background-image: url("icons/rectangle.png");
+        }
+
+        #ellipse-btn{
+            background-image: url("icons/ellipse.png");
+        }
+
+        #picker-btn{
+            background-image: url("icons/picker.png");
+        }
+
+        #clear-btn{
+            background-image:url("icons/trash.png");
+            background-size: 24px;
         }
     </style>
     <script type="module">
@@ -86,6 +170,14 @@
         const $$ = selector => document.querySelectorAll(selector);
         
         const $canvas = $('#canvas');
+        const $colorPicker = $('#color-picker');
+        const $clearBtn = $('#clear-btn');
+        const $drawBtn = $('#draw-btn');
+        const $rectangleBtn = $('#rectangle-btn');
+        const $eraseBtn = $('#erase-btn');
+        const $pickerBtn = $('#picker-btn');
+        const $ellipseBtn = $('#ellipse-btn');
+
         const ctx = $canvas.getContext('2d');
 
         let isDrawing = false;
@@ -93,11 +185,30 @@
         let lastX = 0;
         let lastY = 0;
         let mode = MODES.DRAW;
+        let imageData;
 
         $canvas.addEventListener("mousedown", startDrawing);
         $canvas.addEventListener("mousemove", draw);
         $canvas.addEventListener("mouseup", stopDrawing);
         $canvas.addEventListener("mouseleave", stopDrawing);
+        
+        $colorPicker.addEventListener("change", handleChangeColor);
+        $clearBtn.addEventListener("click", clearCanvas);
+        $rectangleBtn.addEventListener("click", () => 
+            setMode(MODES.RECTANGLE)
+        );
+        $drawBtn.addEventListener("click", () => 
+            setMode(MODES.DRAW)
+        );
+        $eraseBtn.addEventListener("click", () => 
+            setMode(MODES.ERASE)
+        );
+        $pickerBtn.addEventListener("click", () => 
+            setMode(MODES.PICKER)
+        );
+        $ellipseBtn.addEventListener("click", () => 
+            setMode(MODES.ELLIPSE)
+        );
 
         function startDrawing(event){
             isDrawing = true;
@@ -107,6 +218,7 @@
             [startX, startY] = [event.offsetX, event.offsetY];
             [lastX, lastY] = [event.offsetX, event.offsetY];
 
+            imageData = ctx.getImageData(0, 0, $canvas.width, $canvas.height);
 
         }
 
@@ -115,24 +227,117 @@
 
             const {offsetX, offsetY} = event;
 
-            ctx.beginPath();
-            ctx.moveTo(lastX, lastY);
+            if (mode === MODES.DRAW || mode === MODES.ERASE){
+                
+                ctx.beginPath();
+                ctx.moveTo(lastX, lastY);
 
-            ctx.lineTo(offsetX, offsetY);
+                ctx.lineTo(offsetX, offsetY);
+
+                ctx.stroke();
+
+                [lastX, lastY] = [offsetX, offsetY];
+
+                return;
+            }
+
+            if (mode === MODES.RECTANGLE){
+                ctx.putImageData(imageData, 0, 0);
+                const width = offsetX - startX;
+                const height = offsetY - startY;
+
+                ctx.beginPath();
+                ctx.rect(startX, startY, width, height);
+                ctx.stroke();
+                return;
+            }
+            if (mode === MODES.ELLIPSE){
+                ctx.putImageData(imageData, 0, 0);
+                const width = offsetX - startX;
+                const height = offsetY - startY;
+
+                ctx.beginPath();
+                ctx.ellipse(startX + width / 2, startY + height / 2, Math.abs(width / 2), Math.abs(height / 2), 0, 0, 2 * Math.PI);
+                ctx.stroke();
+                return;
+            }
 
         }
 
         function stopDrawing(event){
-            pass
+            isDrawing = false;
+
         }
 
+        function handleChangeColor(){
+            const { value } = $colorPicker
+            ctx.strokeStyle = value;
+        }
+
+        function clearCanvas(){
+            ctx.clearRect(0, 0, $canvas.width, $canvas.height);
+        }
+        
+        async function setMode(newMode){
+            let previousMode = mode;
+            mode = newMode;
+            $("button.active")?.classList.remove("active");
+
+            if (mode === MODES.DRAW){
+                $drawBtn.classList.add("active");
+                canvas.style.cursor = "crosshair";
+                ctx.globalCompositeOperation = "source-over";
+                ctx.lineWidth = 2;
+                return; 
+            }
+            if (mode === MODES.RECTANGLE){
+                $rectangleBtn.classList.add("active");
+                canvas.style.cursor = "crosshair";
+                ctx.globalCompositeOperation = "source-over";
+                ctx.lineWidth = 2;
+                return;
+            }
+            if (mode === MODES.ERASE){
+                $eraseBtn.classList.add("active");
+                canvas.style.cursor = 'url("cursors/erase.png") 0 24, auto';
+                ctx.globalCompositeOperation = "destination-out";
+                ctx.lineWidth = 20;
+                return;
+            }
+            if (mode === MODES.PICKER){
+                $pickerBtn.classList.add("active");
+                canvas.style.cursor = 'url("cursors/picker.png") 0 24, auto';
+
+                const eyeDropper = new window.EyeDropper();
+
+                try {
+                    const result = await eyeDropper.open();
+                    const { sRGBHex } = result;
+                    ctx.strokeStyle = sRGBHex;
+                    $colorPicker.value = sRGBHex;
+                    setMode(previousMode);
+                } catch (error) {
+                    //asi
+                }
+                return;
+            }
+            if (mode === MODES.ELLIPSE){
+                $ellipseBtn.classList.add("active");
+                canvas.style.cursor = "crosshair";
+                ctx.globalCompositeOperation = "source-over";
+                ctx.lineWidth = 2;
+                return;
+            }
+        }
+            
+        setMode(MODES.DRAW);
+
+        if(typeof window.EyeDropper != "undefined"){
+            $pickerBtn.remove("disabled");
+        }
     </script>
 </head>
 <body>
-    <h1>
-        <img src="./icon.png" alt="Paint icon" width="50" height="50">
-        PaintJS
-    </h1>
     <div id="container">
         <header>
             <button>File</button>
@@ -143,8 +348,19 @@
             <button>Help</button>
         </header>
 
+        <aside>
+            <nav>
+                <button class="active" id="draw-btn" title="draw"></button>
+                <button id="erase-btn" title="erase"></button>
+                <button id="rectangle-btn" title="rectangle"></button>
+                <button id="ellipse-btn" title="elipse"></button>
+                <button disabled id="picker-btn" title="color"></button>
+                <button id="clear-btn" title="clear"></button>
+            </nav>
+        </aside>
+
         <main>
-            <canvas id="canvas" width="300" height="200"></canvas>
+            <canvas id="canvas" width="500" height="500"></canvas>
         </main>
 
         <footer>
@@ -154,4 +370,3 @@
 </body>
 </html>
 
-<!--https://www.youtube.com/watch?v=-0UYMmplimA&list=WL&index=3-->
